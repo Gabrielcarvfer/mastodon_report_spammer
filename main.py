@@ -9,7 +9,7 @@ import time
 
 #Prepare global variables
 spamTermsToFilter = []
-punishment = "ignore" #ignore, mute, block, report, silence or ban (last two won't work without the moderation API)
+action = "ignore" #ignore, mute, block, report, warning, silence or ban (last 3 require moderator/administrator account)
 
 ######################################## Function definitions ##########################################################
 
@@ -86,24 +86,28 @@ def punishableSpammer(toot, detectedSpamTerm):
     return infringingContent
 
 
-def punishSpammers(punishment, punishableUsers, mastodonInstance):
+def punishSpammers(action, punishableUsers, mastodonInstance):
     for toot_user in punishableUsers:
         # Collect all infrinding toot_ids and spam_terms for each given user
         infringingTootIds = [toot["tootId"] for toot in punishableUsers[toot_user]]
         infringingSpamTerms = [toot["spamTerm"] for toot in punishableUsers[toot_user]]
 
-        if punishment in "ignore":
+        if action in "ignore":
             pass
-        elif punishment is "mute":
+        elif action is "mute":
             mastodonInstance.account_mute(toot_user)
-        elif punishment is "block":
+        elif action is "block":
             mastodonInstance.account_block(toot_user)
-        elif punishment is "report":
-            mastodonInstance.report(toot_user, infringingTootIds, "Automatically generated report based on keywords:" + ",".join(infringingSpamTerms))
-        elif punishment is "silence":
-            pass #mastodonInstance.moderation_silence(toot_user)
-        elif punishment is "ban":
-            pass #mastodonInstance.moderation_ban(toot_user)
+        elif action in ["report", "warning", "silence", "band"]:
+            report = mastodonInstance.report(toot_user, infringingTootIds, "Automatically generated report based on keywords:" + ",".join(infringingSpamTerms))
+            if action is "warning":
+                mastodonInstance.admin_account_moderate(toot_user, report_id=report["id"])
+            elif action is "silence":
+                mastodonInstance.admin_account_moderate(toot_user, report_id=report["id"], action="silence")
+            elif action is "ban":
+                mastodonInstance.admin_account_moderate(toot_user, report_id=report["id"], action="suspend")
+            else:
+                pass
         else:
             #Hello there ;)
             pass
@@ -238,7 +242,7 @@ def main():
     # Process each toot
     for toot in toots_window:
         # Verify if the toot is a spam (only for text)
-        spam, detectedSpamTerm = checkIfTootIsSpam(toot["content"])
+        spam, detectedSpamTerm = checkIfTootIsSpam(toot["content"]+toot["account"]["note"])
 
         # If the toot is spam
         if spam:
@@ -253,8 +257,8 @@ def main():
         # Collect word information for analysis
         individualTootsStatistics += [collectTootMetrics(toot)]
 
-    # Apply the punishment selected in the beginning of the current file
-    punishSpammers(punishment, punishableUsers, mastodonInstance)
+    # Apply the action selected in the beginning of the current file
+    punishSpammers(action, punishableUsers, mastodonInstance)
     
     # Assemble and print the rank of most frequent words on the analyzed toots (may help find spam)
     word_rank = assembleMetricResults(individualTootsStatistics)
@@ -280,7 +284,7 @@ def main():
             detectedSpamTerms += [toot["spamTerm"]]
 
     # Print number of muted/silenced users and related spam terms that triggered their silencing/muting
-    print("%d spammers were %s. Detected spam terms were: %s" % (len(punishableUsers), punishment, ", ".join(detectedSpamTerms)))
+    print("%d spammers were %s. Detected spam terms were: %s" % (len(punishableUsers), action, ", ".join(detectedSpamTerms)))
 
     # End graciously
     return
