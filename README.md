@@ -1,4 +1,5 @@
-This script is intended for mastodon instances admins and moderators to automatically report posts that contain specific words, mainly targetting spammers. Automatically silencing and banning is still not an option as the moderation API is not available (https://github.com/tootsuite/mastodon/issues/8580).
+This script is intended for mastodon instances admins and moderators to automatically report posts that contain specific words, mainly targetting spammers. 
+Automatically silencing and banning is an option for instances running Mastodon 2.9.1 or newer, using the new Moderation API.
 
 
 How to use?
